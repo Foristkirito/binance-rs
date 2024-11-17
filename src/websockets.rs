@@ -122,11 +122,15 @@ impl<'a> WebSockets<'a> {
     }
 
     pub fn handle_msg(&mut self, msg: &str) -> Result<()> {
-        let value: serde_json::Value = serde_json::from_str(msg)?;
+        let mut value: serde_json::Value = serde_json::from_str(msg)?;
+        let stream_value = value.get("stream").cloned();
 
-        if let Some(data) = value.get("data") {
-            self.handle_msg(&data.to_string())?;
-            return Ok(());
+        if let (Some(data), Some(stream)) = (value.get_mut("data"), stream_value) {
+            if let Some(data_obj) = data.as_object_mut() {
+                data_obj.insert("sn".to_string(), stream.clone());
+                self.handle_msg(&data.to_string())?;
+                return Ok(());
+            }
         }
 
         if let Ok(events) = serde_json::from_value::<Events>(value) {
